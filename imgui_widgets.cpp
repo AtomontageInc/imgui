@@ -4435,6 +4435,29 @@ bool ImGui::InputTextEx(const char* label, const char* hint, char* buf, int buf_
         const bool is_redo =  (Shortcut(ImGuiMod_Shortcut | ImGuiKey_Y, id, f_repeat) || (is_osx && Shortcut(ImGuiMod_Shortcut | ImGuiMod_Shift | ImGuiKey_Z, id, f_repeat))) && !is_readonly && is_undoable;
         const bool is_select_all = Shortcut(ImGuiMod_Shortcut | ImGuiKey_A, id);
 
+		// Atomontage: add clipboard waiting for text
+		bool is_paste = (Shortcut(ImGuiMod_Shortcut | ImGuiKey_V, id, f_repeat) || Shortcut(ImGuiMod_Shift | ImGuiKey_Insert, id, f_repeat)) && !is_readonly
+
+		// wait for text gotten from clipboard, in WASM it doesn't work immediately
+		static bool awaits_clipboard_paste = false;
+#ifdef EMSCRIPTEN
+		if (is_paste)
+        {
+            awaits_clipboard_paste = true;
+            GetClipboardText();
+            is_paste = false;
+        }
+        if (awaits_clipboard_paste)
+        {
+            if (ae::core::system::IsTextInClipboardResolved())
+            {
+                awaits_clipboard_paste = false;
+                is_paste = true; // emulate ctrl+v as we now have the clipboard text ready to read
+            }
+    	}
+#endif
+		// Atomontage: end
+
         // We allow validate/cancel with Nav source (gamepad) to makes it easier to undo an accidental NavInput press with no keyboard wired, but otherwise it isn't very useful.
         const bool nav_gamepad_active = (io.ConfigFlags & ImGuiConfigFlags_NavEnableGamepad) != 0 && (io.BackendFlags & ImGuiBackendFlags_HasGamepad) != 0;
         const bool is_enter_pressed = IsKeyPressed(ImGuiKey_Enter, true) || IsKeyPressed(ImGuiKey_KeypadEnter, true);
